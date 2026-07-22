@@ -1,0 +1,26 @@
+# Optional: run the compose stack under systemd so it starts on boot and is easy
+# to manage. (With `restart: unless-stopped` in the compose + Docker enabled on
+# boot, this is belt-and-braces — but it gives you `systemctl start/stop/status`.)
+#
+# Install:
+#   sudo cp systemd/thirdeye-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now thirdeye-backend
+# Adjust WorkingDirectory to wherever you cloned the repo.
+
+[Unit]
+Description=ThirdEye backend (Docker Compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/thirdeye-backend
+ExecStart=/usr/bin/docker compose up
+ExecStop=/usr/bin/docker compose down
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
