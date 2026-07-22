@@ -1,0 +1,6 @@
+# Caddy auto-provisions a TLS cert for BACKEND_DOMAIN and reverse-proxies to the
+# backend container. WebSocket upgrades (/stream) are passed through automatically.
+{$BACKEND_DOMAIN} {
+	encode gzip
+	reverse_proxy backend:8080
+}

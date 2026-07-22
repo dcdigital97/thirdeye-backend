@@ -1,0 +1,39 @@
+# ThirdEye backend — turnkey deploy with automatic HTTPS/WSS via Caddy.
+#
+# The frontend is served over HTTPS (Netlify), and browsers refuse to open an
+# insecure ws:// socket or fetch http:// from a secure page. So the backend MUST
+# be reachable over https/wss. Caddy handles that for you: point a domain at this
+# server, set BACKEND_DOMAIN in .env, and Caddy provisions a Let's Encrypt cert.
+#
+# No domain yet / just testing locally? Comment out the `caddy` service and hit
+# the backend directly on :8080 over http (frontend must also be http/localhost).
+
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - "8080"
+    # For local http testing without Caddy, expose the port instead:
+    # ports:
+    #   - "8080:8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - BACKEND_DOMAIN=${BACKEND_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

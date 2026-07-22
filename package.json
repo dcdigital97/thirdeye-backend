@@ -1,0 +1,25 @@
+{
+  "name": "thirdeye-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ThirdEye Phase-2 backend — feed proxy + live AIS stream fan-out.",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test dist/test/*.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.25",
+    "@types/node": "^20.19.43",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": { "node": ">=20" }
+}
