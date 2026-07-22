@@ -3,6 +3,7 @@ import http from 'http';
 import { config } from './config';
 import { mountFeeds } from './feeds';
 import { AisIngestor } from './sources/ais';
+import { OpenSkyIngestor } from './sources/opensky';
 import { StreamHub } from './stream';
 
 const app = express();
@@ -22,24 +23,27 @@ app.use((req, res, next) => {
 });
 
 const ais = new AisIngestor(config);
+const opensky = new OpenSkyIngestor(config);
 let hub: StreamHub;
 
 mountFeeds(app);
 
-app.get('/', (_req, res) => res.json({ service: 'thirdeye-backend', version: '0.1.0', endpoints: ['/api/health', '/feeds/*', '/stream (ws)'] }));
+app.get('/', (_req, res) => res.json({ service: 'thirdeye-backend', version: '0.2.0', endpoints: ['/api/health', '/feeds/*', '/stream (ws)'] }));
 
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     uptimeSec: Math.round(process.uptime()),
     ais: ais.status(),
+    opensky: opensky.status(),
     streamClients: hub ? hub.clientCount() : 0,
   });
 });
 
 const server = http.createServer(app);
-hub = new StreamHub(server, ais, config);
+hub = new StreamHub(server, { ais, opensky }, config);
 ais.start();
+opensky.start();
 
 server.listen(config.port, () => {
   console.log(`ThirdEye backend listening on :${config.port}`);

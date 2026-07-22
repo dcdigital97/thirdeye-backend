@@ -29,11 +29,24 @@ export const config = {
   // Widen or move via AIS_BBOX="latMin,lonMin,latMax,lonMax". Global = "-90,-180,90,180".
   aisBbox: parseBbox(process.env.AIS_BBOX, { latMin: 40, lonMin: -20, latMax: 62, lonMax: 30 }),
 
+  // --- Civil aircraft (OpenSky Network) ---
+  // OAuth2 client credentials from an OpenSky account (Account -> API clients).
+  openskyClientId: process.env.OPENSKY_CLIENT_ID || '',
+  openskyClientSecret: process.env.OPENSKY_CLIENT_SECRET || '',
+  // Poll box. Default = UK / Ireland / North Sea (~10x10deg => 2 OpenSky credits/request).
+  openskyBbox: parseBbox(process.env.OPENSKY_BBOX, { latMin: 49, lonMin: -11, latMax: 59, lonMax: 3 }),
+  // Poll cadence. 45s with a 2-credit box ≈ 3,840 credits/day — just under the 4,000 authed budget.
+  // Widen the box or shorten this and you risk the daily cap; the ingestor also self-throttles when low.
+  openskyIntervalMs: num(process.env.OPENSKY_INTERVAL_MS, 45000),
+
   // --- /stream fan-out ---
   streamIntervalMs: num(process.env.STREAM_INTERVAL_MS, 3000),
   maxVesselsPerClient: num(process.env.MAX_VESSELS, 800),
+  maxAircraftPerClient: num(process.env.MAX_AIRCRAFT, 800),
   // Drop vessels we haven't heard from in this many seconds.
   vesselTtlSec: num(process.env.VESSEL_TTL_SEC, 1800),
+  // Drop aircraft not seen in this many seconds (ADS-B fixes are frequent; short TTL).
+  aircraftTtlSec: num(process.env.AIRCRAFT_TTL_SEC, 120),
 };
 
 export type Config = typeof config;

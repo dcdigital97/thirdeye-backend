@@ -15,7 +15,27 @@ export interface Vessel {
   ts: number;           // last update, epoch ms
 }
 
-export type ViewportMsg = { type: 'viewport'; bbox: [number, number, number, number] }; // [minLon,minLat,maxLon,maxLat]
+/** Normalised civil-aircraft record (from OpenSky state vectors). */
+export interface Aircraft {
+  icao24: string;
+  callsign: string | null;
+  country: string | null;
+  lat: number;
+  lon: number;
+  alt: number | null;     // metres (geometric if available, else barometric)
+  onGround: boolean;
+  vel: number | null;     // knots
+  track: number | null;   // degrees
+  vrate: number | null;   // m/s (climb +, descend -)
+  squawk: string | null;
+  ts: number;             // last contact, epoch ms
+}
+
+export type ViewportMsg = {
+  type: 'viewport';
+  bbox: [number, number, number, number]; // [minLon,minLat,maxLon,maxLat]
+  want?: string[];                         // e.g. ['ships','aircraft']; absent => both
+};
 
 export function inBbox(v: { lat: number; lon: number }, b: BBox): boolean {
   return v.lat >= b.latMin && v.lat <= b.latMax && v.lon >= b.lonMin && v.lon <= b.lonMax;

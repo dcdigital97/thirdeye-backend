@@ -3,13 +3,16 @@
 A small always-on Node/TypeScript service that does the things the static globe can't:
 holds secrets, keeps a live socket open, and fans one upstream feed out to every viewer.
 
-**This build (Phase 2a) adds:**
+**This build adds:**
 - **Live AIS ship traffic** — ingests the [AISStream](https://aisstream.io/) WebSocket with a
   server-held key, normalises vessels, and pushes the ones in your viewport to the browser over
   `/stream`. The key never reaches the browser.
-- **`/feeds/*` proxy** — the same feed rewrites the frontend uses on Netlify, ported here, so the
-  frontend can optionally point its feeds at this backend instead.
-- **`/api/health`** — status (AIS connection, vessel count, stream clients).
+- **Live civil aircraft** — polls the [OpenSky Network](https://opensky-network.org/) once for a
+  region (OAuth2, server-held credentials) and fans it out to every viewer over the same `/stream`,
+  which is what keeps it inside OpenSky's tight daily credit budget. Optional — leave the creds
+  blank and ships still work.
+- **`/feeds/*` proxy** — the same feed rewrites the frontend uses on Netlify, ported here.
+- **`/api/health`** — status (AIS + OpenSky connection, counts, stream clients).
 
 The 17 existing frontend layers keep working exactly as they are — this backend is additive.
 
@@ -69,6 +72,9 @@ that's only for poking the API directly.)
 | `BACKEND_DOMAIN` | Domain Caddy gets a cert for and serves on. |
 | `CORS_ORIGIN` | Allowed frontend origin(s). Set to your Netlify origin; `*` for testing. |
 | `AIS_BBOX` | Ingestion box `latMin,lonMin,latMax,lonMax`. Default = NW Europe. Global is a firehose. |
+| `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` | OpenSky OAuth2 client (server-only). Blank = civil aircraft off. |
+| `OPENSKY_BBOX` | Aircraft poll box. Default = UK/Ireland/North Sea. Bigger box = more credits/request. |
+| `OPENSKY_INTERVAL_MS` | Poll cadence (default 45s). Shorter = more credits/day. See the credit note below. |
 | `PORT` | Internal port (8080; leave as-is for the compose setup). |
 | `STREAM_INTERVAL_MS` / `MAX_VESSELS` / `VESSEL_TTL_SEC` | Fan-out tuning. |
 
@@ -78,6 +84,20 @@ that's only for poking the API directly.)
 - `GET /feeds/*` → same-origin proxy for the key-free feeds (adsb, usgs, celestrak, nhc, gdacs, ea, jpl, gpsjam, cables, metar)
 - `WS /stream` → send `{"type":"viewport","bbox":[minLon,minLat,maxLon,maxLat]}`; receive
   `{"type":"ships","vessels":[{ mmsi, name, lat, lon, cog, sog, hdg, type, cat, nav, ts }]}` on a timer.
+
+## Enabling civil aircraft (OpenSky)
+
+Optional, and independent of ships. To turn it on:
+1. Make a free account at <https://opensky-network.org/>.
+2. **Account → API clients → create a client.** Copy the **client id** and **client secret**.
+3. Add them as `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` env vars (in Railway, or your `.env`), then redeploy.
+
+**Credit budget (read this):** authenticated accounts get ~4,000 credits/day. A `/states/all` request
+costs **1 credit** for a box ≤25 sq°, **2** for ≤100, **3** for ≤400, **4** for anything larger. The
+defaults (a ~2-credit UK box, polled every 45 s) land around 3,800 credits/day — just under the cap.
+Widen `OPENSKY_BBOX` or shorten `OPENSKY_INTERVAL_MS` and you'll burn credits faster; the ingestor
+also self-throttles (backs off to a 10-min cadence) when it sees the remaining credits running low,
+so it won't hard-exhaust the budget — it just updates less often.
 
 ## Once it's live
 
