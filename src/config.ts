@@ -60,6 +60,20 @@ export const config = {
   // ~1 req/s cap. ~44 points x 1500 ms => a full world refresh roughly every ~66 s.
   civairGridStepMs: num(process.env.CIVAIR_GRID_STEP_MS, 1500),
 
+  // --- NASA FIRMS active fire (server-held MAP_KEY) ---
+  // Free MAP_KEY from https://firms.modaps.eosdis.nasa.gov/api/map_key/ — stays here on the
+  // server, never sent to the browser. Empty => fires disabled (everything else still works).
+  firmsKey: process.env.FIRMS_MAP_KEY || '',
+  // Comma-separated FIRMS sources to merge (NRT = near-real-time).
+  firmsSources: (process.env.FIRMS_SOURCES || 'VIIRS_SNPP_NRT,VIIRS_NOAA20_NRT,MODIS_NRT')
+    .split(',').map((s) => s.trim()).filter(Boolean),
+  // Days back to include (1–10). 1 keeps it recent and light.
+  firmsDayRange: Math.min(10, Math.max(1, num(process.env.FIRMS_DAY_RANGE, 1))),
+  // Poll cadence. FIRMS NRT refreshes a few times/day; 15 min is gentle on the 5000/10min budget.
+  firmsIntervalMs: num(process.env.FIRMS_INTERVAL_MS, 900_000),
+  // Cap detections served to the client (strongest by FRP first) to protect the browser.
+  maxFires: num(process.env.MAX_FIRES, 6000),
+
   // --- /stream fan-out ---
   streamIntervalMs: num(process.env.STREAM_INTERVAL_MS, 3000),
   maxVesselsPerClient: num(process.env.MAX_VESSELS, 800),

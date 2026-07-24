@@ -31,6 +31,19 @@ export interface Aircraft {
   ts: number;             // last contact, epoch ms
 }
 
+/** Normalised active-fire detection (from NASA FIRMS area CSV). */
+export interface Fire {
+  lat: number;
+  lon: number;
+  frp: number | null;                         // fire radiative power, MW
+  conf: 'low' | 'nominal' | 'high' | null;    // detection confidence
+  bright: number | null;                      // brightness temperature, K
+  sat: string | null;                         // satellite (e.g. N, 1, Terra, Aqua)
+  instrument: string | null;                  // VIIRS / MODIS
+  dn: 'D' | 'N' | null;                       // day / night overpass
+  ts: number;                                 // detection time, epoch ms (UTC)
+}
+
 export type ViewportMsg = {
   type: 'viewport';
   bbox: [number, number, number, number]; // [minLon,minLat,maxLon,maxLat]
