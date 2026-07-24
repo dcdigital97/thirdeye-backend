@@ -25,9 +25,11 @@ export const config = {
 
   // --- AIS (AISStream) ---
   aisKey: process.env.AISSTREAM_API_KEY || '',
-  // Ingestion bounding box. Default: NW Europe / North Sea / UK — a sane, non-firehose region.
-  // Widen or move via AIS_BBOX="latMin,lonMin,latMax,lonMax". Global = "-90,-180,90,180".
-  aisBbox: parseBbox(process.env.AIS_BBOX, { latMin: 40, lonMin: -20, latMax: 62, lonMax: 30 }),
+  // Ingestion bounding box. Default is now WORLDWIDE so ships appear across the whole globe.
+  // The /stream hub only sends each client the vessels inside their viewport (capped), so a
+  // global world state stays cheap on the wire. Narrow via AIS_BBOX="latMin,lonMin,latMax,lonMax"
+  // (e.g. "40,-20,62,30" for NW Europe) if the instance ever strains under the global firehose.
+  aisBbox: parseBbox(process.env.AIS_BBOX, { latMin: -90, lonMin: -180, latMax: 90, lonMax: 180 }),
 
   // --- Civil aircraft (OpenSky Network) ---
   // OAuth2 client credentials from an OpenSky account (Account -> API clients).
@@ -49,6 +51,14 @@ export const config = {
   civairIntervalMs: num(process.env.CIVAIR_INTERVAL_MS, 10000),
   // Civil-only by default (the dedicated military layer already covers mil traffic).
   civairIncludeMilitary: (process.env.CIVAIR_INCLUDE_MILITARY || 'false') === 'true',
+  // Global coverage. A single airplanes.live request only covers a 250 nm circle, so to
+  // populate the whole map we round-robin a worldwide grid of hotspot centres (GLOBAL_GRID
+  // in sources/civair.ts) and merge them. Set CIVAIR_GRID=false to fall back to the single
+  // civairLat/civairLon point above (the old UK-only behaviour).
+  civairGrid: (process.env.CIVAIR_GRID || 'true') === 'true',
+  // Delay between successive point fetches while gridding — stays under airplanes.live's
+  // ~1 req/s cap. ~44 points x 1500 ms => a full world refresh roughly every ~66 s.
+  civairGridStepMs: num(process.env.CIVAIR_GRID_STEP_MS, 1500),
 
   // --- /stream fan-out ---
   streamIntervalMs: num(process.env.STREAM_INTERVAL_MS, 3000),
