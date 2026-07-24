@@ -2,13 +2,13 @@ import type { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Config } from './config';
 import type { AisIngestor } from './sources/ais';
-import type { OpenSkyIngestor } from './sources/opensky';
+import type { CivAirIngestor } from './sources/civair';
 import { inBbox, ViewportMsg } from './types';
 
 interface Box { latMin: number; lonMin: number; latMax: number; lonMax: number; }
 interface Client { ws: WebSocket; bbox: Box | null; want: Set<string>; alive: boolean; }
 
-export interface Sources { ais: AisIngestor; opensky: OpenSkyIngestor; }
+export interface Sources { ais: AisIngestor; air: CivAirIngestor; }
 
 /**
  * WebSocket hub at /stream. A client sends
@@ -26,7 +26,7 @@ export class StreamHub {
     this.wss.on('connection', (ws) => {
       const client: Client = { ws, bbox: null, want: new Set(['ships', 'aircraft']), alive: true };
       this.clients.add(client);
-      ws.send(JSON.stringify({ type: 'hello', ais: this.src.ais.status(), opensky: this.src.opensky.status() }));
+      ws.send(JSON.stringify({ type: 'hello', ais: this.src.ais.status(), aircraft: this.src.air.status() }));
 
       ws.on('message', (data) => {
         let msg: any;
@@ -69,7 +69,7 @@ export class StreamHub {
 
     if (c.want.has('aircraft')) {
       const inView = [];
-      for (const a of this.src.opensky.all()) {
+      for (const a of this.src.air.all()) {
         if (inBbox(a, box)) { inView.push(a); if (inView.length >= this.cfg.maxAircraftPerClient) break; }
       }
       try { c.ws.send(JSON.stringify({ type: 'aircraft', count: inView.length, craft: inView })); } catch {}

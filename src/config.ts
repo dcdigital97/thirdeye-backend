@@ -39,6 +39,17 @@ export const config = {
   // Widen the box or shorten this and you risk the daily cap; the ingestor also self-throttles when low.
   openskyIntervalMs: num(process.env.OPENSKY_INTERVAL_MS, 45000),
 
+  // --- Civil aircraft (airplanes.live point query) ---
+  // OpenSky is unreachable from cloud hosts, so civil aircraft use airplanes.live's
+  // /v2/point/{lat}/{lon}/{radius} endpoint — no key, no OAuth, reachable from the cloud.
+  // Default centre = UK; radius max 250 nm. Poll ~10s (airplanes.live cap is ~1 req/s).
+  civairLat: num(process.env.CIVAIR_LAT, 54.0),
+  civairLon: num(process.env.CIVAIR_LON, -2.5),
+  civairRadiusNm: Math.min(250, num(process.env.CIVAIR_RADIUS_NM, 250)),
+  civairIntervalMs: num(process.env.CIVAIR_INTERVAL_MS, 10000),
+  // Civil-only by default (the dedicated military layer already covers mil traffic).
+  civairIncludeMilitary: (process.env.CIVAIR_INCLUDE_MILITARY || 'false') === 'true',
+
   // --- /stream fan-out ---
   streamIntervalMs: num(process.env.STREAM_INTERVAL_MS, 3000),
   maxVesselsPerClient: num(process.env.MAX_VESSELS, 800),

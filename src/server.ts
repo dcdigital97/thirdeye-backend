@@ -3,7 +3,7 @@ import http from 'http';
 import { config } from './config';
 import { mountFeeds } from './feeds';
 import { AisIngestor } from './sources/ais';
-import { OpenSkyIngestor } from './sources/opensky';
+import { CivAirIngestor } from './sources/civair';
 import { StreamHub } from './stream';
 
 const app = express();
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 });
 
 const ais = new AisIngestor(config);
-const opensky = new OpenSkyIngestor(config);
+const air = new CivAirIngestor(config);
 let hub: StreamHub;
 
 mountFeeds(app);
@@ -35,15 +35,15 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     uptimeSec: Math.round(process.uptime()),
     ais: ais.status(),
-    opensky: opensky.status(),
+    aircraft: air.status(),
     streamClients: hub ? hub.clientCount() : 0,
   });
 });
 
 const server = http.createServer(app);
-hub = new StreamHub(server, { ais, opensky }, config);
+hub = new StreamHub(server, { ais, air }, config);
 ais.start();
-opensky.start();
+air.start();
 
 server.listen(config.port, () => {
   console.log(`ThirdEye backend listening on :${config.port}`);
