@@ -1,6 +1,10 @@
 import type { Config } from '../config';
 import { Fire } from '../types';
 
+// The worldwide FIRMS CSV is large and generated on demand, so allow a generous per-source
+// timeout. Sources are fetched in parallel, so total poll time is ~this, not the sum.
+const FETCH_TIMEOUT_MS = 120_000;
+
 /** Normalise a FIRMS confidence value (VIIRS uses l/n/h; MODIS uses 0–100). */
 function normConf(v: string): 'low' | 'nominal' | 'high' | null {
   const s = (v || '').trim().toLowerCase();
@@ -82,28 +86,43 @@ export class FiresIngestor {
     this.loop();
   }
 
+  /** Fetch + parse one FIRMS source, worldwide. Long timeout — the global CSV is large
+   *  and FIRMS generates it on demand, so the first request in particular can be slow. */
+  private async fetchSource(src: string, now: number): Promise<Fire[]> {
+    const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${this.cfg.firmsKey}/${src}/world/${this.cfg.firmsDayRange}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'ThirdEye/0.3 (+backend active-fire)' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const parsed = parseFirmsCsv(text, now);
+    if (!parsed.length && !/latitude/i.test(text.slice(0, 120))) {
+      throw new Error(text.slice(0, 80).replace(/\s+/g, ' ')); // e.g. "Invalid MAP_KEY"
+    }
+    return parsed;
+  }
+
   private async poll(): Promise<void> {
     const now = Date.now();
+    // Fetch every source in parallel and keep whatever succeeds — one slow or failed source
+    // (these are big global downloads) must not sink the others.
+    const settled = await Promise.allSettled(
+      this.cfg.firmsSources.map((src) => this.fetchSource(src, now))
+    );
     const merged: Fire[] = [];
-    for (const src of this.cfg.firmsSources) {
-      const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${this.cfg.firmsKey}/${src}/world/${this.cfg.firmsDayRange}`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'ThirdEye/0.3 (+backend active-fire)' },
-        signal: AbortSignal.timeout(45_000),
-      });
-      if (!res.ok) throw new Error(`FIRMS ${src} HTTP ${res.status}`);
-      const text = await res.text();
-      const parsed = parseFirmsCsv(text, now);
-      if (!parsed.length && !/latitude/i.test(text.slice(0, 120))) {
-        // A non-CSV body usually means a bad key or a source typo — surface it.
-        throw new Error(`FIRMS ${src}: ${text.slice(0, 80).replace(/\s+/g, ' ')}`);
-      }
-      merged.push(...parsed);
+    const errs: string[] = [];
+    settled.forEach((r, i) => {
+      if (r.status === 'fulfilled') merged.push(...r.value);
+      else errs.push(`${this.cfg.firmsSources[i]}: ${(r.reason as Error)?.message || r.reason}`);
+    });
+    if (!settled.some((r) => r.status === 'fulfilled')) {
+      throw new Error(errs.join(' | ') || 'all FIRMS sources failed');
     }
     merged.sort((a, b) => (b.frp || 0) - (a.frp || 0));
     this.fires = merged.slice(0, this.cfg.maxFires);
     this.lastOk = true;
-    this.lastError = null;
+    this.lastError = errs.length ? errs.join(' | ') : null; // record any partial failures
     this.lastUpdate = now;
   }
 
