@@ -74,6 +74,16 @@ export const config = {
   // Cap detections served to the client (strongest by FRP first) to protect the browser.
   maxFires: num(process.env.MAX_FIRES, 6000),
 
+  // --- TomTom live traffic (server-held key; tiles proxied so the key never hits the browser) ---
+  // Free key from https://developer.tomtom.com/ . Empty => traffic layer disabled.
+  tomtomKey: process.env.TOMTOM_KEY || '',
+  // Flow style: relative0-dark suits the dark globe; others: relative0, relative, absolute, reduced-sensitivity.
+  tomtomStyle: process.env.TOMTOM_STYLE || 'relative0-dark',
+
+  // --- Windy webcams (server-held key; the frontend never sees it) ---
+  // Free key from https://api.windy.com/ . Empty => webcams layer disabled.
+  windyKey: process.env.WINDY_KEY || '',
+
   // --- /stream fan-out ---
   streamIntervalMs: num(process.env.STREAM_INTERVAL_MS, 3000),
   maxVesselsPerClient: num(process.env.MAX_VESSELS, 800),
